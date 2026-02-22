@@ -510,7 +510,7 @@ async def get_active_friend_walk(current_user: dict = Depends(get_current_user))
     walk = await db.friend_walks.find_one({
         "user_id": current_user["id"],
         "status": "active"
-    })
+    }, {"_id": 0})
     return walk
 
 @api_router.put("/friend-walk/{walk_id}/update")
