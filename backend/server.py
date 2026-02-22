@@ -372,7 +372,7 @@ async def get_active_sos(current_user: dict = Depends(get_current_user)):
     sos = await db.sos_alerts.find_one({
         "user_id": current_user["id"],
         "status": "active"
-    })
+    }, {"_id": 0})
     return sos
 
 # ==================== INCIDENTS ====================
