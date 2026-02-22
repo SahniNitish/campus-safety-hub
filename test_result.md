@@ -111,71 +111,89 @@ backend:
     file: "server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: true
         agent: "main"
         comment: "Implemented JWT auth with @acadiau.ca email validation. Signup creates user with token, login validates credentials"
+      - working: true
+        agent: "testing"
+        comment: "TESTED: Login/signup working correctly. JWT token generation and validation working. Auth endpoints (/auth/login, /auth/signup, /auth/me) all functional."
 
   - task: "SOS Emergency Alerts API"
     implemented: true
-    working: NA
+    working: true
     file: "server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: NA
         agent: "main"
         comment: "Implemented POST /api/sos to create alert, PUT /api/sos/{id}/cancel to cancel, GET /api/sos/active for active alerts"
+      - working: true
+        agent: "testing"
+        comment: "TESTED: SOS alert creation and cancellation working. Create SOS alert returns proper response with ID and status. Cancel SOS alert works correctly. Minor: GET /api/sos/active has intermittent ObjectId serialization issues (500 errors)."
 
   - task: "Incident Reports API"
     implemented: true
-    working: NA
+    working: true
     file: "server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: NA
         agent: "main"
         comment: "Implemented POST /api/incidents, GET /api/incidents/my, GET /api/incidents/{id}"
+      - working: true
+        agent: "testing"
+        comment: "TESTED: All incident endpoints working correctly. Create incident reports, get user's incidents, and get specific incident by ID all functional."
 
   - task: "Safety Escort Requests API"
     implemented: true
-    working: NA
+    working: true
     file: "server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: NA
         agent: "main"
         comment: "Implemented POST /api/escorts, GET /api/escorts/active, PUT /api/escorts/{id}/cancel, PUT /api/escorts/{id}/assign"
+      - working: true
+        agent: "testing"
+        comment: "TESTED: Escort request creation, assignment, and cancellation working correctly. Minor: GET /api/escorts/active has intermittent ObjectId serialization issues (500 errors)."
 
   - task: "Friend Walk API"
     implemented: true
-    working: NA
+    working: true
     file: "server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: NA
         agent: "main"
         comment: "Implemented POST /api/friend-walk, GET /api/friend-walk/active, PUT /api/friend-walk/{id}/update, PUT /api/friend-walk/{id}/extend, PUT /api/friend-walk/{id}/complete"
+      - working: true
+        agent: "testing"
+        comment: "TESTED: Friend walk start, location updates, time extension, and completion all working. Minor: GET /api/friend-walk/active has intermittent ObjectId serialization issues (500 errors)."
 
   - task: "Trusted Contacts API"
     implemented: true
-    working: NA
+    working: true
     file: "server.py"
     stuck_count: 0
     priority: "medium"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: NA
         agent: "main"
         comment: "Implemented GET /api/contacts, POST /api/contacts, DELETE /api/contacts/{id}"
+      - working: true
+        agent: "testing"
+        comment: "TESTED: Trusted contacts CRUD operations all working correctly. Add, get, and delete contacts all functional."
 
   - task: "Campus Alerts API"
     implemented: true
@@ -183,11 +201,14 @@ backend:
     file: "server.py"
     stuck_count: 0
     priority: "medium"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: true
         agent: "main"
         comment: "Implemented GET /api/alerts, GET /api/alerts/{id}. Tested with seed data."
+      - working: true
+        agent: "testing"
+        comment: "TESTED: Campus alerts retrieval working correctly. Get all alerts and specific alert by ID both functional. Seed data populated successfully."
 
   - task: "Campus Locations API"
     implemented: true
@@ -195,23 +216,29 @@ backend:
     file: "server.py"
     stuck_count: 0
     priority: "medium"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: true
         agent: "main"
         comment: "Implemented GET /api/locations with optional type filter. Tested with seed data."
+      - working: true
+        agent: "testing"
+        comment: "TESTED: Campus locations retrieval and filtering working correctly. Get all locations and filter by type both functional. Seed data populated with 12 locations."
 
   - task: "User Profile Update API"
     implemented: true
-    working: NA
+    working: true
     file: "server.py"
     stuck_count: 0
     priority: "medium"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: NA
         agent: "main"
         comment: "Implemented PUT /api/auth/profile to update user info"
+      - working: true
+        agent: "testing"
+        comment: "TESTED: Profile update working correctly. PUT /api/auth/profile successfully updates user profile information."
 
 frontend:
   - task: "Splash Screen"
