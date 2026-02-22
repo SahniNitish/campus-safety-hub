@@ -449,7 +449,7 @@ async def get_active_escort(current_user: dict = Depends(get_current_user)):
     request = await db.escort_requests.find_one({
         "user_id": current_user["id"],
         "status": {"$in": ["pending", "assigned"]}
-    })
+    }, {"_id": 0})
     return request
 
 @api_router.put("/escorts/{request_id}/cancel")
