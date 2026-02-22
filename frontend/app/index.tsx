@@ -30,9 +30,11 @@ export default function SplashScreen() {
       await seedData();
     } catch (error) {
       console.log('Seed error (may already exist):', error);
-    } finally {
-      setSeeding(false);
     }
+    // Always finish seeding after a short delay
+    setTimeout(() => {
+      setSeeding(false);
+    }, 500);
   };
 
   return (
