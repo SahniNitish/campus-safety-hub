@@ -32,6 +32,7 @@ export default function ProfileScreen() {
   const [locationServices, setLocationServices] = useState(true);
 
   const handleLogout = () => {
+    console.log('Logout button pressed');
     Alert.alert(
       'Logout',
       'Are you sure you want to logout?',
@@ -41,8 +42,16 @@ export default function ProfileScreen() {
           text: 'Logout', 
           style: 'destructive',
           onPress: async () => {
-            await logout();
-            router.replace('/login');
+            console.log('Logout confirmed, calling logout...');
+            try {
+              await logout();
+              console.log('Logout success, navigating...');
+              router.replace('/login');
+              console.log('Navigation called');
+            } catch (error) {
+              Alert.alert('Error', 'Failed to logout. Please try again.');
+              console.log('Logout error:', error);
+            }
           }
         },
       ]
