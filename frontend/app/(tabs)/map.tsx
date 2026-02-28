@@ -37,8 +37,22 @@ const ACADIA_REGION = {
 };
 
 export default function MapScreen() {
-  const [locations, setLocations] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Initialize with mock data to show immediately
+  const [locations, setLocations] = useState<any[]>([
+    { id: '1', name: 'Acadia Security Office', description: 'Main campus security headquarters. Open 24/7.', location_type: 'security_office', lat: 45.0875, lng: -64.3665 },
+    { id: '2', name: 'BAC Emergency Phone', description: 'Emergency phone outside Beveridge Arts Centre', location_type: 'emergency_phone', lat: 45.088, lng: -64.367 },
+    { id: '3', name: 'Library Emergency Phone', description: 'Emergency phone at main library entrance', location_type: 'emergency_phone', lat: 45.087, lng: -64.366 },
+    { id: '4', name: 'SUB Emergency Phone', description: 'Emergency phone at Student Union Building', location_type: 'emergency_phone', lat: 45.0885, lng: -64.3675 },
+    { id: '5', name: 'Patterson Hall AED', description: 'AED located in main lobby of Patterson Hall', location_type: 'aed', lat: 45.0865, lng: -64.3655 },
+    { id: '6', name: 'Library AED', description: 'AED located at library front desk', location_type: 'aed', lat: 45.0871, lng: -64.3661 },
+    { id: '7', name: 'Athletic Centre AED', description: 'AED located at athletic centre entrance', location_type: 'aed', lat: 45.086, lng: -64.368 },
+    { id: '8', name: 'Library', description: 'Vaughan Memorial Library - 24/7 access during exams', location_type: 'safe_building', lat: 45.087, lng: -64.366 },
+    { id: '9', name: 'Student Union Building', description: 'SUB - Open until midnight daily', location_type: 'safe_building', lat: 45.0885, lng: -64.3675 },
+    { id: '10', name: 'KC Irving Centre', description: 'Environmental Science Centre - Card access after hours', location_type: 'safe_building', lat: 45.0878, lng: -64.3668 },
+    { id: '11', name: 'Main Parking Lot', description: 'Main campus parking - Well lit, security patrols', location_type: 'parking', lat: 45.0882, lng: -64.3658 },
+    { id: '12', name: 'Residence Parking', description: 'Residence parking lot - Permit required', location_type: 'parking', lat: 45.0868, lng: -64.3672 },
+  ]);
+  const [loading, setLoading] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [userLocation, setUserLocation] = useState<any>(null);
   const [selectedLocation, setSelectedLocation] = useState<any>(null);
