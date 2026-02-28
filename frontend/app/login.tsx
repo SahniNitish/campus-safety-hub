@@ -8,20 +8,22 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  Dimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../src/context/AuthContext';
-import { COLORS, SPACING, FONT_SIZE } from '../src/constants/theme';
-import Input from '../src/components/Input';
-import Button from '../src/components/Button';
+import { COLORS, GRADIENTS, SPACING, FONT_SIZE, FONT_WEIGHT, BORDER_RADIUS, SHADOWS } from '../src/constants/theme';
+
+const { width } = Dimensions.get('window');
 
 export default function LoginScreen() {
   const router = useRouter();
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
 
@@ -49,7 +51,7 @@ export default function LoginScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
@@ -59,56 +61,116 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.header}>
-            <View style={styles.iconCircle}>
-              <Ionicons name="shield-checkmark" size={48} color={COLORS.white} />
+          {/* Curved Header */}
+          <LinearGradient
+            colors={GRADIENTS.navy}
+            style={styles.header}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <View style={styles.headerContent}>
+              <Text style={styles.welcomeText}>Welcome Back</Text>
+              <Text style={styles.subtitle}>Sign in to continue</Text>
             </View>
-            <Text style={styles.title}>Acadia Safe</Text>
-            <Text style={styles.subtitle}>Welcome back</Text>
+          </LinearGradient>
+
+          {/* Form Card */}
+          <View style={styles.formCard}>
+            {/* Email Input */}
+            <View style={styles.inputContainer}>
+              <View style={styles.inputIcon}>
+                <Ionicons name="mail-outline" size={20} color={COLORS.textMuted} />
+              </View>
+              <View style={styles.inputWrapper}>
+                <Text style={styles.inputLabel}>Email</Text>
+                <TouchableOpacity 
+                  style={[styles.input, errors.email && styles.inputError]}
+                  activeOpacity={1}
+                >
+                  <TextInput
+                    style={styles.inputText}
+                    placeholder="yourname@acadiau.ca"
+                    placeholderTextColor={COLORS.textMuted}
+                    value={email}
+                    onChangeText={setEmail}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                  />
+                </TouchableOpacity>
+                {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
+              </View>
+            </View>
+
+            {/* Password Input */}
+            <View style={styles.inputContainer}>
+              <View style={styles.inputIcon}>
+                <Ionicons name="lock-closed-outline" size={20} color={COLORS.textMuted} />
+              </View>
+              <View style={styles.inputWrapper}>
+                <Text style={styles.inputLabel}>Password</Text>
+                <View style={[styles.input, styles.passwordInput, errors.password && styles.inputError]}>
+                  <TextInput
+                    style={[styles.inputText, { flex: 1 }]}
+                    placeholder="Enter your password"
+                    placeholderTextColor={COLORS.textMuted}
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry={!showPassword}
+                  />
+                  <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                    <Ionicons 
+                      name={showPassword ? 'eye-off-outline' : 'eye-outline'} 
+                      size={20} 
+                      color={COLORS.textMuted} 
+                    />
+                  </TouchableOpacity>
+                </View>
+                {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
+              </View>
+            </View>
+
+            {/* Forgot Password */}
+            <TouchableOpacity style={styles.forgotPassword}>
+              <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+            </TouchableOpacity>
+
+            {/* Sign In Button */}
+            <TouchableOpacity
+              style={styles.signInButton}
+              onPress={handleLogin}
+              disabled={loading}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={GRADIENTS.navy}
+                style={styles.signInGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              >
+                {loading ? (
+                  <Text style={styles.signInText}>Signing in...</Text>
+                ) : (
+                  <Text style={styles.signInText}>Sign In</Text>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
           </View>
 
-          <View style={styles.form}>
-            <Input
-              label="Email"
-              placeholder="yourname@acadiau.ca"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              error={errors.email}
-            />
-
-            <Input
-              label="Password"
-              placeholder="Enter your password"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              error={errors.password}
-            />
-
-            <Button
-              title="Login"
-              onPress={handleLogin}
-              loading={loading}
-              fullWidth
-              style={styles.loginButton}
-            />
-
-            <TouchableOpacity
-              onPress={() => router.push('/signup')}
-              style={styles.signupLink}
-            >
-              <Text style={styles.signupText}>
-                Don't have an account? <Text style={styles.signupBold}>Sign Up</Text>
-              </Text>
+          {/* Sign Up Link */}
+          <View style={styles.signUpContainer}>
+            <Text style={styles.signUpText}>Don't have an account? </Text>
+            <TouchableOpacity onPress={() => router.push('/signup')}>
+              <Text style={styles.signUpLink}>Sign Up</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
+
+// Need to import TextInput
+import { TextInput } from 'react-native';
 
 const styles = StyleSheet.create({
   container: {
@@ -120,48 +182,117 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    padding: SPACING.lg,
   },
   header: {
-    alignItems: 'center',
-    marginTop: SPACING.xxl,
-    marginBottom: SPACING.xl,
+    height: 240,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    justifyContent: 'flex-end',
+    paddingBottom: SPACING.xxl,
   },
-  iconCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: COLORS.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: SPACING.md,
+  headerContent: {
+    paddingHorizontal: SPACING.lg,
   },
-  title: {
-    fontSize: FONT_SIZE.xxxl,
-    fontWeight: 'bold',
-    color: COLORS.primary,
-    marginBottom: SPACING.xs,
+  welcomeText: {
+    fontSize: FONT_SIZE.xxl,
+    fontWeight: FONT_WEIGHT.bold,
+    color: COLORS.white,
   },
   subtitle: {
-    fontSize: FONT_SIZE.lg,
-    color: COLORS.gray[600],
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.navy[100],
+    marginTop: SPACING.xs,
   },
-  form: {
+  formCard: {
+    backgroundColor: COLORS.white,
+    marginHorizontal: SPACING.md,
+    marginTop: -SPACING.xl,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.lg,
+    ...SHADOWS.card,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    marginBottom: SPACING.md,
+  },
+  inputIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: COLORS.navy[100],
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: SPACING.sm,
+  },
+  inputWrapper: {
     flex: 1,
   },
-  loginButton: {
-    marginTop: SPACING.md,
+  inputLabel: {
+    fontSize: FONT_SIZE.xs,
+    fontWeight: FONT_WEIGHT.medium,
+    color: COLORS.textSecondary,
+    marginBottom: SPACING.xs,
   },
-  signupLink: {
-    marginTop: SPACING.lg,
+  input: {
+    backgroundColor: COLORS.gray[50],
+    borderRadius: BORDER_RADIUS.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderWidth: 1,
+    borderColor: COLORS.gray[200],
+  },
+  passwordInput: {
+    flexDirection: 'row',
     alignItems: 'center',
   },
-  signupText: {
-    fontSize: FONT_SIZE.md,
-    color: COLORS.gray[600],
+  inputText: {
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.textPrimary,
   },
-  signupBold: {
-    fontWeight: '600',
-    color: COLORS.primary,
+  inputError: {
+    borderColor: COLORS.accent,
+  },
+  errorText: {
+    fontSize: FONT_SIZE.xs,
+    color: COLORS.accent,
+    marginTop: SPACING.xs,
+  },
+  forgotPassword: {
+    alignSelf: 'flex-end',
+    marginBottom: SPACING.lg,
+  },
+  forgotPasswordText: {
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.navy[800],
+    fontWeight: FONT_WEIGHT.medium,
+  },
+  signInButton: {
+    borderRadius: BORDER_RADIUS.md,
+    overflow: 'hidden',
+    ...SHADOWS.buttonNavy,
+  },
+  signInGradient: {
+    paddingVertical: SPACING.md,
+    alignItems: 'center',
+  },
+  signInText: {
+    fontSize: FONT_SIZE.md,
+    fontWeight: FONT_WEIGHT.semibold,
+    color: COLORS.white,
+  },
+  signUpContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: SPACING.xl,
+    paddingBottom: SPACING.xl,
+  },
+  signUpText: {
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.textSecondary,
+  },
+  signUpLink: {
+    fontSize: FONT_SIZE.sm,
+    fontWeight: FONT_WEIGHT.semibold,
+    color: COLORS.navy[800],
   },
 });
