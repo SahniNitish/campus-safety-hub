@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,23 +11,33 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
+import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
 import { locationsAPI } from '../../src/services/api';
 import { COLORS, SPACING, FONT_SIZE, BORDER_RADIUS, SHADOWS, CAMPUS_LOCATIONS } from '../../src/constants/theme';
 import LoadingSpinner from '../../src/components/LoadingSpinner';
 import Card from '../../src/components/Card';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 const LOCATION_TYPES = [
-  { id: 'all', label: 'All', icon: 'apps' },
-  { id: 'emergency_phone', label: 'Emergency Phones', icon: 'call', color: COLORS.info },
+  { id: 'all', label: 'All', icon: 'apps', color: COLORS.primary },
+  { id: 'emergency_phone', label: 'Phones', icon: 'call', color: COLORS.info },
   { id: 'aed', label: 'AEDs', icon: 'heart', color: COLORS.accent },
-  { id: 'safe_building', label: 'Safe Buildings', icon: 'business', color: COLORS.secondary },
+  { id: 'safe_building', label: 'Safe', icon: 'business', color: COLORS.secondary },
   { id: 'security_office', label: 'Security', icon: 'shield', color: COLORS.primary },
   { id: 'parking', label: 'Parking', icon: 'car', color: COLORS.gray[600] },
 ];
 
+// Acadia University Campus region
+const ACADIA_REGION = {
+  latitude: 45.0875,
+  longitude: -64.3665,
+  latitudeDelta: 0.008,
+  longitudeDelta: 0.008,
+};
+
 export default function MapScreen() {
+  const mapRef = useRef<MapView>(null);
   const [locations, setLocations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedFilter, setSelectedFilter] = useState('all');
@@ -92,6 +102,30 @@ export default function MapScreen() {
     return d < 1000 ? `${Math.round(d)}m` : `${(d/1000).toFixed(1)}km`;
   };
 
+  const handleMarkerPress = (location: any) => {
+    setSelectedLocation(location);
+    mapRef.current?.animateToRegion({
+      latitude: location.lat,
+      longitude: location.lng,
+      latitudeDelta: 0.003,
+      longitudeDelta: 0.003,
+    }, 500);
+  };
+
+  const centerOnUser = () => {
+    if (userLocation) {
+      mapRef.current?.animateToRegion({
+        ...userLocation,
+        latitudeDelta: 0.005,
+        longitudeDelta: 0.005,
+      }, 500);
+    }
+  };
+
+  const centerOnCampus = () => {
+    mapRef.current?.animateToRegion(ACADIA_REGION, 500);
+  };
+
   if (loading) {
     return <LoadingSpinner fullScreen message="Loading map..." />;
   }
@@ -116,7 +150,10 @@ export default function MapScreen() {
               styles.filterChip,
               selectedFilter === type.id && styles.filterChipActive,
             ]}
-            onPress={() => setSelectedFilter(type.id)}
+            onPress={() => {
+              setSelectedFilter(type.id);
+              setSelectedLocation(null);
+            }}
           >
             <Ionicons 
               name={type.icon as any} 
@@ -133,74 +170,108 @@ export default function MapScreen() {
         ))}
       </ScrollView>
 
-      {/* Map Placeholder with Location List */}
+      {/* Map View */}
       <View style={styles.mapContainer}>
-        <View style={styles.mapPlaceholder}>
-          <View style={styles.mapOverlay}>
-            <Ionicons name="map" size={48} color={COLORS.primary} />
-            <Text style={styles.mapText}>Acadia University Campus</Text>
-            <Text style={styles.mapSubtext}>Wolfville, Nova Scotia</Text>
+        <MapView
+          ref={mapRef}
+          style={styles.map}
+          provider={PROVIDER_DEFAULT}
+          initialRegion={ACADIA_REGION}
+          showsUserLocation={true}
+          showsMyLocationButton={false}
+          showsCompass={true}
+          mapType="standard"
+        >
+          {/* Location Markers */}
+          {filteredLocations.map((location) => (
+            <Marker
+              key={location.id}
+              coordinate={{
+                latitude: location.lat,
+                longitude: location.lng,
+              }}
+              title={location.name}
+              description={location.description}
+              onPress={() => handleMarkerPress(location)}
+            >
+              <View style={[
+                styles.markerContainer,
+                { backgroundColor: getLocationColor(location.location_type) },
+                selectedLocation?.id === location.id && styles.markerSelected,
+              ]}>
+                <Ionicons 
+                  name={getLocationIcon(location.location_type) as any} 
+                  size={16} 
+                  color={COLORS.white} 
+                />
+              </View>
+            </Marker>
+          ))}
+        </MapView>
+
+        {/* Map Controls */}
+        <View style={styles.mapControls}>
+          <TouchableOpacity style={styles.mapButton} onPress={centerOnCampus}>
+            <Ionicons name="school" size={22} color={COLORS.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.mapButton} onPress={centerOnUser}>
+            <Ionicons name="locate" size={22} color={COLORS.info} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Legend */}
+        <View style={styles.legend}>
+          <Text style={styles.legendTitle}>Legend</Text>
+          <View style={styles.legendItems}>
+            {LOCATION_TYPES.filter(t => t.id !== 'all').map((type) => (
+              <View key={type.id} style={styles.legendItem}>
+                <View style={[styles.legendDot, { backgroundColor: type.color }]} />
+                <Text style={styles.legendText}>{type.label}</Text>
+              </View>
+            ))}
           </View>
-          {/* User location dot */}
-          {userLocation && (
-            <View style={styles.userDot}>
-              <View style={styles.userDotInner} />
-            </View>
-          )}
         </View>
       </View>
 
-      {/* Locations List */}
-      <View style={styles.listContainer}>
-        <Text style={styles.listTitle}>
-          {filteredLocations.length} {selectedFilter === 'all' ? 'Locations' : LOCATION_TYPES.find(t => t.id === selectedFilter)?.label}
-        </Text>
-        <ScrollView showsVerticalScrollIndicator={false}>
-          {filteredLocations.map((location) => (
-            <TouchableOpacity
-              key={location.id}
-              onPress={() => setSelectedLocation(selectedLocation?.id === location.id ? null : location)}
-              activeOpacity={0.7}
-            >
-              <Card style={[
-                styles.locationCard,
-                selectedLocation?.id === location.id && styles.locationCardSelected,
-              ]}>
-                <View style={styles.locationRow}>
-                  <View style={[styles.locationIcon, { backgroundColor: getLocationColor(location.location_type) }]}>
-                    <Ionicons 
-                      name={getLocationIcon(location.location_type) as any} 
-                      size={20} 
-                      color={COLORS.white} 
-                    />
-                  </View>
-                  <View style={styles.locationInfo}>
-                    <Text style={styles.locationName}>{location.name}</Text>
-                    {location.description && (
-                      <Text style={styles.locationDesc} numberOfLines={1}>
-                        {location.description}
-                      </Text>
-                    )}
-                  </View>
-                  {userLocation && (
-                    <Text style={styles.locationDistance}>
-                      {calculateDistance(location.lat, location.lng)}
-                    </Text>
-                  )}
-                </View>
-                {selectedLocation?.id === location.id && (
-                  <View style={styles.locationExpanded}>
-                    <Text style={styles.locationFullDesc}>{location.description}</Text>
-                    <TouchableOpacity style={styles.directionsButton}>
-                      <Ionicons name="navigate" size={16} color={COLORS.white} />
-                      <Text style={styles.directionsText}>Get Directions</Text>
-                    </TouchableOpacity>
-                  </View>
+      {/* Selected Location Details */}
+      {selectedLocation && (
+        <View style={styles.detailsContainer}>
+          <Card style={styles.detailsCard}>
+            <View style={styles.detailsHeader}>
+              <View style={[styles.detailsIcon, { backgroundColor: getLocationColor(selectedLocation.location_type) }]}>
+                <Ionicons 
+                  name={getLocationIcon(selectedLocation.location_type) as any} 
+                  size={20} 
+                  color={COLORS.white} 
+                />
+              </View>
+              <View style={styles.detailsInfo}>
+                <Text style={styles.detailsName}>{selectedLocation.name}</Text>
+                {userLocation && (
+                  <Text style={styles.detailsDistance}>
+                    {calculateDistance(selectedLocation.lat, selectedLocation.lng)} away
+                  </Text>
                 )}
-              </Card>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+              </View>
+              <TouchableOpacity 
+                style={styles.closeButton}
+                onPress={() => setSelectedLocation(null)}
+              >
+                <Ionicons name="close" size={20} color={COLORS.gray[500]} />
+              </TouchableOpacity>
+            </View>
+            {selectedLocation.description && (
+              <Text style={styles.detailsDescription}>{selectedLocation.description}</Text>
+            )}
+          </Card>
+        </View>
+      )}
+
+      {/* Locations Count */}
+      <View style={styles.countContainer}>
+        <Text style={styles.countText}>
+          {filteredLocations.length} {selectedFilter === 'all' ? 'locations' : LOCATION_TYPES.find(t => t.id === selectedFilter)?.label} on campus
+        </Text>
       </View>
     </SafeAreaView>
   );
@@ -227,7 +298,7 @@ const styles = StyleSheet.create({
   },
   filtersContainer: {
     paddingHorizontal: SPACING.md,
-    paddingBottom: SPACING.md,
+    paddingBottom: SPACING.sm,
   },
   filterChip: {
     flexDirection: 'row',
@@ -252,120 +323,127 @@ const styles = StyleSheet.create({
     color: COLORS.white,
   },
   mapContainer: {
-    height: 200,
+    flex: 1,
     marginHorizontal: SPACING.md,
     borderRadius: BORDER_RADIUS.lg,
     overflow: 'hidden',
-    marginBottom: SPACING.md,
-  },
-  mapPlaceholder: {
-    flex: 1,
-    backgroundColor: COLORS.gray[200],
-    alignItems: 'center',
-    justifyContent: 'center',
     position: 'relative',
   },
-  mapOverlay: {
-    alignItems: 'center',
+  map: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
   },
-  mapText: {
-    fontSize: FONT_SIZE.lg,
-    fontWeight: '600',
-    color: COLORS.primary,
-    marginTop: SPACING.sm,
-  },
-  mapSubtext: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.gray[500],
-  },
-  userDot: {
+  mapControls: {
     position: 'absolute',
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: 'rgba(59, 130, 246, 0.3)',
+    right: SPACING.sm,
+    top: SPACING.sm,
+    gap: SPACING.sm,
+  },
+  mapButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: COLORS.white,
     alignItems: 'center',
     justifyContent: 'center',
+    ...SHADOWS.md,
   },
-  userDotInner: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: COLORS.info,
-    borderWidth: 2,
-    borderColor: COLORS.white,
+  legend: {
+    position: 'absolute',
+    left: SPACING.sm,
+    bottom: SPACING.sm,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderRadius: BORDER_RADIUS.md,
+    padding: SPACING.sm,
+    ...SHADOWS.sm,
   },
-  listContainer: {
-    flex: 1,
-    paddingHorizontal: SPACING.md,
-  },
-  listTitle: {
-    fontSize: FONT_SIZE.md,
+  legendTitle: {
+    fontSize: FONT_SIZE.xs,
     fontWeight: '600',
     color: COLORS.gray[700],
-    marginBottom: SPACING.sm,
+    marginBottom: SPACING.xs,
   },
-  locationCard: {
-    marginBottom: SPACING.sm,
-    padding: SPACING.md,
+  legendItems: {
+    gap: 4,
   },
-  locationCardSelected: {
-    borderWidth: 2,
-    borderColor: COLORS.primary,
-  },
-  locationRow: {
+  legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  locationIcon: {
+  legendDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: SPACING.xs,
+  },
+  legendText: {
+    fontSize: FONT_SIZE.xs,
+    color: COLORS.gray[600],
+  },
+  markerContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: COLORS.white,
+    ...SHADOWS.sm,
+  },
+  markerSelected: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 3,
+  },
+  detailsContainer: {
+    paddingHorizontal: SPACING.md,
+    paddingTop: SPACING.sm,
+  },
+  detailsCard: {
+    padding: SPACING.md,
+  },
+  detailsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  detailsIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: SPACING.md,
   },
-  locationInfo: {
+  detailsInfo: {
     flex: 1,
+    marginLeft: SPACING.sm,
   },
-  locationName: {
+  detailsName: {
     fontSize: FONT_SIZE.md,
     fontWeight: '600',
     color: COLORS.gray[800],
   },
-  locationDesc: {
+  detailsDistance: {
     fontSize: FONT_SIZE.sm,
-    color: COLORS.gray[500],
-    marginTop: 2,
-  },
-  locationDistance: {
-    fontSize: FONT_SIZE.sm,
-    fontWeight: '600',
     color: COLORS.primary,
+    fontWeight: '500',
   },
-  locationExpanded: {
-    marginTop: SPACING.md,
-    paddingTop: SPACING.md,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.gray[200],
+  closeButton: {
+    padding: SPACING.xs,
   },
-  locationFullDesc: {
+  detailsDescription: {
     fontSize: FONT_SIZE.sm,
     color: COLORS.gray[600],
+    marginTop: SPACING.sm,
     lineHeight: 20,
-    marginBottom: SPACING.md,
   },
-  directionsButton: {
-    flexDirection: 'row',
+  countContainer: {
+    padding: SPACING.md,
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.primary,
-    paddingVertical: SPACING.sm,
-    borderRadius: BORDER_RADIUS.md,
   },
-  directionsText: {
-    color: COLORS.white,
-    fontWeight: '600',
-    marginLeft: SPACING.xs,
+  countText: {
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.gray[500],
   },
 });
