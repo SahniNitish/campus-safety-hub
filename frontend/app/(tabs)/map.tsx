@@ -17,15 +17,6 @@ import { COLORS, SPACING, FONT_SIZE, BORDER_RADIUS, SHADOWS, CAMPUS_LOCATIONS } 
 import LoadingSpinner from '../../src/components/LoadingSpinner';
 import Card from '../../src/components/Card';
 
-// Conditional import for native maps
-let MapView: any = null;
-let Marker: any = null;
-if (Platform.OS !== 'web') {
-  const Maps = require('react-native-maps');
-  MapView = Maps.default;
-  Marker = Maps.Marker;
-}
-
 const { width, height } = Dimensions.get('window');
 
 const LOCATION_TYPES = [
@@ -46,7 +37,6 @@ const ACADIA_REGION = {
 };
 
 export default function MapScreen() {
-  const mapRef = useRef<any>(null);
   const [locations, setLocations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedFilter, setSelectedFilter] = useState('all');
@@ -111,18 +101,6 @@ export default function MapScreen() {
     return d < 1000 ? `${Math.round(d)}m` : `${(d/1000).toFixed(1)}km`;
   };
 
-  const handleMarkerPress = (location: any) => {
-    setSelectedLocation(location);
-    if (mapRef.current && Platform.OS !== 'web') {
-      mapRef.current.animateToRegion({
-        latitude: location.lat,
-        longitude: location.lng,
-        latitudeDelta: 0.003,
-        longitudeDelta: 0.003,
-      }, 500);
-    }
-  };
-
   const openInMaps = (location: any) => {
     const url = Platform.select({
       ios: `maps://app?daddr=${location.lat},${location.lng}`,
@@ -141,139 +119,11 @@ export default function MapScreen() {
     return <LoadingSpinner fullScreen message="Loading map..." />;
   }
 
-  // Web version - using an embedded iframe and location list
-  if (Platform.OS === 'web') {
-    return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Campus Map</Text>
-          <Text style={styles.subtitle}>Safety resources at Acadia University</Text>
-        </View>
-
-        {/* Filter Chips */}
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filtersContainer}
-        >
-          {LOCATION_TYPES.map((type) => (
-            <TouchableOpacity
-              key={type.id}
-              style={[
-                styles.filterChip,
-                selectedFilter === type.id && styles.filterChipActive,
-              ]}
-              onPress={() => {
-                setSelectedFilter(type.id);
-                setSelectedLocation(null);
-              }}
-            >
-              <Ionicons 
-                name={type.icon as any} 
-                size={16} 
-                color={selectedFilter === type.id ? COLORS.white : COLORS.gray[600]} 
-              />
-              <Text style={[
-                styles.filterLabel,
-                selectedFilter === type.id && styles.filterLabelActive,
-              ]}>
-                {type.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        {/* Web Map Placeholder with Open Maps Button */}
-        <View style={styles.webMapContainer}>
-          <View style={styles.webMapPlaceholder}>
-            <Ionicons name="map" size={48} color={COLORS.primary} />
-            <Text style={styles.webMapTitle}>Acadia University Campus</Text>
-            <Text style={styles.webMapSubtitle}>Wolfville, Nova Scotia</Text>
-            <TouchableOpacity style={styles.openMapsButton} onPress={openGoogleMaps}>
-              <Ionicons name="open-outline" size={18} color={COLORS.white} />
-              <Text style={styles.openMapsText}>Open in Google Maps</Text>
-            </TouchableOpacity>
-          </View>
-          
-          {/* Legend */}
-          <View style={styles.webLegend}>
-            <Text style={styles.legendTitle}>Safety Resources</Text>
-            <View style={styles.legendGrid}>
-              {LOCATION_TYPES.filter(t => t.id !== 'all').map((type) => (
-                <View key={type.id} style={styles.legendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: type.color }]} />
-                  <Text style={styles.legendText}>{type.label}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        </View>
-
-        {/* Locations List */}
-        <View style={styles.listContainer}>
-          <Text style={styles.listTitle}>
-            {filteredLocations.length} {selectedFilter === 'all' ? 'Locations' : LOCATION_TYPES.find(t => t.id === selectedFilter)?.label}
-          </Text>
-          <ScrollView showsVerticalScrollIndicator={false} style={styles.listScroll}>
-            {filteredLocations.map((location) => (
-              <TouchableOpacity
-                key={location.id}
-                onPress={() => setSelectedLocation(selectedLocation?.id === location.id ? null : location)}
-                activeOpacity={0.7}
-              >
-                <Card style={[
-                  styles.locationCard,
-                  selectedLocation?.id === location.id && styles.locationCardSelected,
-                ]}>
-                  <View style={styles.locationRow}>
-                    <View style={[styles.locationIcon, { backgroundColor: getLocationColor(location.location_type) }]}>
-                      <Ionicons 
-                        name={getLocationIcon(location.location_type) as any} 
-                        size={20} 
-                        color={COLORS.white} 
-                      />
-                    </View>
-                    <View style={styles.locationInfo}>
-                      <Text style={styles.locationName}>{location.name}</Text>
-                      {location.description && (
-                        <Text style={styles.locationDesc} numberOfLines={1}>
-                          {location.description}
-                        </Text>
-                      )}
-                    </View>
-                    {userLocation && (
-                      <Text style={styles.locationDistance}>
-                        {calculateDistance(location.lat, location.lng)}
-                      </Text>
-                    )}
-                  </View>
-                  {selectedLocation?.id === location.id && (
-                    <View style={styles.locationExpanded}>
-                      <Text style={styles.locationFullDesc}>{location.description}</Text>
-                      <TouchableOpacity 
-                        style={styles.directionsButton}
-                        onPress={() => openInMaps(location)}
-                      >
-                        <Ionicons name="navigate" size={16} color={COLORS.white} />
-                        <Text style={styles.directionsText}>Get Directions</Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
-                </Card>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  // Native version with real map
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.title}>Campus Map</Text>
-        <Text style={styles.subtitle}>Safety resources at Acadia</Text>
+        <Text style={styles.subtitle}>Safety resources at Acadia University</Text>
       </View>
 
       {/* Filter Chips */}
@@ -309,47 +159,24 @@ export default function MapScreen() {
         ))}
       </ScrollView>
 
-      {/* Map View (Native Only) */}
-      {MapView && (
-        <View style={styles.mapContainer}>
-          <MapView
-            ref={mapRef}
-            style={styles.map}
-            initialRegion={ACADIA_REGION}
-            showsUserLocation={true}
-            showsMyLocationButton={false}
-            showsCompass={true}
-            mapType="standard"
-          >
-            {/* Location Markers */}
-            {filteredLocations.map((location) => (
-              <Marker
-                key={location.id}
-                coordinate={{
-                  latitude: location.lat,
-                  longitude: location.lng,
-                }}
-                title={location.name}
-                description={location.description}
-                onPress={() => handleMarkerPress(location)}
-              >
-                <View style={[
-                  styles.markerContainer,
-                  { backgroundColor: getLocationColor(location.location_type) },
-                  selectedLocation?.id === location.id && styles.markerSelected,
-                ]}>
-                  <Ionicons 
-                    name={getLocationIcon(location.location_type) as any} 
-                    size={16} 
-                    color={COLORS.white} 
-                  />
-                </View>
-              </Marker>
-            ))}
-          </MapView>
-
-          {/* Legend */}
-          <View style={styles.nativeLegend}>
+      {/* Map Placeholder with Open Maps Button */}
+      <View style={styles.mapContainer}>
+        <View style={styles.mapPlaceholder}>
+          <View style={styles.mapImagePlaceholder}>
+            <Ionicons name="map" size={48} color={COLORS.primary} />
+          </View>
+          <Text style={styles.mapTitle}>Acadia University Campus</Text>
+          <Text style={styles.mapSubtitle}>Wolfville, Nova Scotia</Text>
+          <TouchableOpacity style={styles.openMapsButton} onPress={openGoogleMaps}>
+            <Ionicons name="open-outline" size={18} color={COLORS.white} />
+            <Text style={styles.openMapsText}>Open in Google Maps</Text>
+          </TouchableOpacity>
+        </View>
+        
+        {/* Legend */}
+        <View style={styles.legend}>
+          <Text style={styles.legendTitle}>Safety Resources</Text>
+          <View style={styles.legendGrid}>
             {LOCATION_TYPES.filter(t => t.id !== 'all').map((type) => (
               <View key={type.id} style={styles.legendItem}>
                 <View style={[styles.legendDot, { backgroundColor: type.color }]} />
@@ -358,48 +185,63 @@ export default function MapScreen() {
             ))}
           </View>
         </View>
-      )}
+      </View>
 
-      {/* Selected Location Details */}
-      {selectedLocation && (
-        <View style={styles.detailsContainer}>
-          <Card style={styles.detailsCard}>
-            <View style={styles.detailsHeader}>
-              <View style={[styles.detailsIcon, { backgroundColor: getLocationColor(selectedLocation.location_type) }]}>
-                <Ionicons 
-                  name={getLocationIcon(selectedLocation.location_type) as any} 
-                  size={20} 
-                  color={COLORS.white} 
-                />
-              </View>
-              <View style={styles.detailsInfo}>
-                <Text style={styles.detailsName}>{selectedLocation.name}</Text>
-                {userLocation && (
-                  <Text style={styles.detailsDistance}>
-                    {calculateDistance(selectedLocation.lat, selectedLocation.lng)} away
-                  </Text>
-                )}
-              </View>
-              <TouchableOpacity 
-                style={styles.closeButton}
-                onPress={() => setSelectedLocation(null)}
-              >
-                <Ionicons name="close" size={20} color={COLORS.gray[500]} />
-              </TouchableOpacity>
-            </View>
-            {selectedLocation.description && (
-              <Text style={styles.detailsDescription}>{selectedLocation.description}</Text>
-            )}
-            <TouchableOpacity 
-              style={styles.getDirectionsButton}
-              onPress={() => openInMaps(selectedLocation)}
+      {/* Locations List */}
+      <View style={styles.listContainer}>
+        <Text style={styles.listTitle}>
+          {filteredLocations.length} {selectedFilter === 'all' ? 'Locations' : LOCATION_TYPES.find(t => t.id === selectedFilter)?.label}
+        </Text>
+        <ScrollView showsVerticalScrollIndicator={false} style={styles.listScroll}>
+          {filteredLocations.map((location) => (
+            <TouchableOpacity
+              key={location.id}
+              onPress={() => setSelectedLocation(selectedLocation?.id === location.id ? null : location)}
+              activeOpacity={0.7}
             >
-              <Ionicons name="navigate" size={18} color={COLORS.white} />
-              <Text style={styles.getDirectionsText}>Get Directions</Text>
+              <Card style={[
+                styles.locationCard,
+                selectedLocation?.id === location.id && styles.locationCardSelected,
+              ]}>
+                <View style={styles.locationRow}>
+                  <View style={[styles.locationIcon, { backgroundColor: getLocationColor(location.location_type) }]}>
+                    <Ionicons 
+                      name={getLocationIcon(location.location_type) as any} 
+                      size={20} 
+                      color={COLORS.white} 
+                    />
+                  </View>
+                  <View style={styles.locationInfo}>
+                    <Text style={styles.locationName}>{location.name}</Text>
+                    {location.description && (
+                      <Text style={styles.locationDesc} numberOfLines={1}>
+                        {location.description}
+                      </Text>
+                    )}
+                  </View>
+                  {userLocation && (
+                    <Text style={styles.locationDistance}>
+                      {calculateDistance(location.lat, location.lng)}
+                    </Text>
+                  )}
+                </View>
+                {selectedLocation?.id === location.id && (
+                  <View style={styles.locationExpanded}>
+                    <Text style={styles.locationFullDesc}>{location.description}</Text>
+                    <TouchableOpacity 
+                      style={styles.directionsButton}
+                      onPress={() => openInMaps(location)}
+                    >
+                      <Ionicons name="navigate" size={16} color={COLORS.white} />
+                      <Text style={styles.directionsText}>Get Directions</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </Card>
             </TouchableOpacity>
-          </Card>
-        </View>
-      )}
+          ))}
+        </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -449,27 +291,34 @@ const styles = StyleSheet.create({
   filterLabelActive: {
     color: COLORS.white,
   },
-  // Web Map Styles
-  webMapContainer: {
+  // Map Styles
+  mapContainer: {
     marginHorizontal: SPACING.md,
-    borderRadius: BORDER_RADIUS.lg,
-    overflow: 'hidden',
     marginBottom: SPACING.md,
   },
-  webMapPlaceholder: {
+  mapPlaceholder: {
     backgroundColor: COLORS.gray[100],
     padding: SPACING.xl,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: BORDER_RADIUS.lg,
   },
-  webMapTitle: {
+  mapImagePlaceholder: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: COLORS.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: SPACING.sm,
+  },
+  mapTitle: {
     fontSize: FONT_SIZE.lg,
     fontWeight: '600',
     color: COLORS.primary,
     marginTop: SPACING.sm,
   },
-  webMapSubtitle: {
+  mapSubtitle: {
     fontSize: FONT_SIZE.sm,
     color: COLORS.gray[500],
   },
@@ -487,7 +336,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: SPACING.xs,
   },
-  webLegend: {
+  legend: {
     backgroundColor: COLORS.white,
     padding: SPACING.md,
     borderRadius: BORDER_RADIUS.lg,
@@ -519,45 +368,6 @@ const styles = StyleSheet.create({
   legendText: {
     fontSize: FONT_SIZE.xs,
     color: COLORS.gray[600],
-  },
-  // Native Map Styles
-  mapContainer: {
-    flex: 1,
-    marginHorizontal: SPACING.md,
-    borderRadius: BORDER_RADIUS.lg,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  map: {
-    flex: 1,
-    width: '100%',
-    height: '100%',
-  },
-  nativeLegend: {
-    position: 'absolute',
-    left: SPACING.sm,
-    bottom: SPACING.sm,
-    backgroundColor: 'rgba(255,255,255,0.95)',
-    borderRadius: BORDER_RADIUS.md,
-    padding: SPACING.sm,
-    gap: 4,
-    ...SHADOWS.sm,
-  },
-  markerContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: COLORS.white,
-    ...SHADOWS.sm,
-  },
-  markerSelected: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 3,
   },
   // List Styles
   listContainer: {
@@ -632,63 +442,6 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.md,
   },
   directionsText: {
-    color: COLORS.white,
-    fontWeight: '600',
-    marginLeft: SPACING.xs,
-  },
-  // Details Panel Styles
-  detailsContainer: {
-    paddingHorizontal: SPACING.md,
-    paddingTop: SPACING.sm,
-    paddingBottom: SPACING.md,
-  },
-  detailsCard: {
-    padding: SPACING.md,
-  },
-  detailsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  detailsIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  detailsInfo: {
-    flex: 1,
-    marginLeft: SPACING.sm,
-  },
-  detailsName: {
-    fontSize: FONT_SIZE.md,
-    fontWeight: '600',
-    color: COLORS.gray[800],
-  },
-  detailsDistance: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.primary,
-    fontWeight: '500',
-  },
-  closeButton: {
-    padding: SPACING.xs,
-  },
-  detailsDescription: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.gray[600],
-    marginTop: SPACING.sm,
-    lineHeight: 20,
-  },
-  getDirectionsButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.primary,
-    paddingVertical: SPACING.sm,
-    borderRadius: BORDER_RADIUS.md,
-    marginTop: SPACING.md,
-  },
-  getDirectionsText: {
     color: COLORS.white,
     fontWeight: '600',
     marginLeft: SPACING.xs,
