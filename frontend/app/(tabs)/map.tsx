@@ -69,6 +69,17 @@ export default function MapScreen() {
       setLocations(response.data);
     } catch (error) {
       console.log('Error fetching locations:', error);
+      // Set mock data if API fails
+      setLocations([
+        { id: '1', name: 'Acadia Security Office', description: 'Main campus security headquarters. Open 24/7.', location_type: 'security_office', lat: 45.0875, lng: -64.3665 },
+        { id: '2', name: 'BAC Emergency Phone', description: 'Emergency phone outside Beveridge Arts Centre', location_type: 'emergency_phone', lat: 45.088, lng: -64.367 },
+        { id: '3', name: 'Library Emergency Phone', description: 'Emergency phone at main library entrance', location_type: 'emergency_phone', lat: 45.087, lng: -64.366 },
+        { id: '4', name: 'Patterson Hall AED', description: 'AED located in main lobby of Patterson Hall', location_type: 'aed', lat: 45.0865, lng: -64.3655 },
+        { id: '5', name: 'Library AED', description: 'AED located at library front desk', location_type: 'aed', lat: 45.0871, lng: -64.3661 },
+        { id: '6', name: 'Library', description: 'Vaughan Memorial Library - 24/7 access during exams', location_type: 'safe_building', lat: 45.087, lng: -64.366 },
+        { id: '7', name: 'Student Union Building', description: 'SUB - Open until midnight daily', location_type: 'safe_building', lat: 45.0885, lng: -64.3675 },
+        { id: '8', name: 'Main Parking Lot', description: 'Main campus parking - Well lit, security patrols', location_type: 'parking', lat: 45.0882, lng: -64.3658 },
+      ]);
     } finally {
       setLoading(false);
     }
