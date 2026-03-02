@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
+import json
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field, EmailStr
@@ -13,9 +14,37 @@ from datetime import datetime, timedelta
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 import re
+import firebase_admin
+from firebase_admin import credentials, firestore as firebase_firestore
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
+
+# ==================== FIREBASE ADMIN (Dashboard bridge) ====================
+
+_firebase_app = None
+_firestore_client = None
+
+def get_firestore_client():
+    """Lazy-init Firebase Admin. Returns None gracefully if not configured."""
+    global _firebase_app, _firestore_client
+    if _firestore_client is not None:
+        return _firestore_client
+    try:
+        sa_json = os.environ.get('FIREBASE_SERVICE_ACCOUNT_JSON')
+        if not sa_json or not sa_json.strip():
+            logging.getLogger(__name__).warning(
+                "FIREBASE_SERVICE_ACCOUNT_JSON not set; Dashboard bridge disabled"
+            )
+            return None
+        cred = credentials.Certificate(json.loads(sa_json))
+        _firebase_app = firebase_admin.initialize_app(cred, name='dashboard_bridge')
+        _firestore_client = firebase_firestore.client(_firebase_app)
+        logging.getLogger(__name__).info("Firebase Admin SDK initialized for Dashboard bridge")
+        return _firestore_client
+    except Exception as e:
+        logging.getLogger(__name__).error(f"Firebase Admin init failed: {e}")
+        return None
 
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
@@ -342,6 +371,7 @@ async def delete_trusted_contact(contact_id: str, current_user: dict = Depends(g
 @api_router.post("/sos", response_model=SOSAlert)
 async def create_sos_alert(alert: SOSAlertCreate, current_user: dict = Depends(get_current_user)):
     sos_id = str(uuid.uuid4())
+    now = datetime.utcnow()
     sos_doc = {
         "id": sos_id,
         "user_id": current_user["id"],
@@ -351,10 +381,35 @@ async def create_sos_alert(alert: SOSAlertCreate, current_user: dict = Depends(g
         "location_lng": alert.location_lng,
         "alert_type": alert.alert_type,
         "status": "active",
-        "created_at": datetime.utcnow()
+        "created_at": now
     }
     await db.sos_alerts.insert_one(sos_doc)
     logger.info(f"SOS Alert created: {sos_id} by {current_user['full_name']}")
+
+    # Mirror to Firestore so Dashboard sees it in real-time
+    try:
+        fs = get_firestore_client()
+        if fs is not None:
+            firestore_alert = {
+                "studentName": current_user["full_name"],
+                "studentEmail": current_user.get("email", ""),
+                "studentPhone": current_user["phone"],
+                "location": f"{alert.location_lat:.4f}, {alert.location_lng:.4f}",
+                "latitude": alert.location_lat,
+                "longitude": alert.location_lng,
+                "status": "new",
+                "createdAt": now.isoformat() + "Z",
+                "alertType": alert.alert_type or "sos",
+                "campusSosId": sos_id,
+                "assignedTo": None,
+                "assignedToName": None,
+            }
+            fs.collection("alerts").document(sos_id).set(firestore_alert)
+            logger.info(f"SOS {sos_id} mirrored to Firestore")
+    except Exception as e:
+        logger.error(f"Firestore mirror failed for SOS {sos_id}: {e}")
+        # Non-blocking — student still gets success response
+
     return SOSAlert(**sos_doc)
 
 @api_router.put("/sos/{sos_id}/cancel")
@@ -365,6 +420,21 @@ async def cancel_sos_alert(sos_id: str, current_user: dict = Depends(get_current
     )
     if result.modified_count == 0:
         raise HTTPException(status_code=404, detail="SOS alert not found")
+
+    # Sync resolved status to Firestore so Dashboard updates in real-time
+    try:
+        fs = get_firestore_client()
+        if fs is not None:
+            doc_ref = fs.collection("alerts").document(sos_id)
+            if doc_ref.get().exists:
+                doc_ref.update({
+                    "status": "resolved",
+                    "resolvedByCampusApp": True,
+                    "updatedAt": datetime.utcnow().isoformat() + "Z"
+                })
+    except Exception as e:
+        logger.error(f"Firestore cancel sync failed for SOS {sos_id}: {e}")
+
     return {"message": "SOS alert cancelled"}
 
 @api_router.get("/sos/active")
@@ -546,6 +616,44 @@ async def complete_friend_walk(walk_id: str, current_user: dict = Depends(get_cu
 
 @api_router.get("/alerts", response_model=List[CampusAlert])
 async def get_campus_alerts():
+    # Primary: read broadcasts from Firestore (written by Dashboard)
+    fs = get_firestore_client()
+    if fs is not None:
+        try:
+            docs = (
+                fs.collection("broadcasts")
+                .order_by("createdAt", direction=firebase_firestore.Query.DESCENDING)
+                .limit(50)
+                .stream()
+            )
+            type_map = {
+                "emergency": "emergency",
+                "advisory": "advisory",
+                "information": "info",
+                "all_clear": "info",
+            }
+            result = []
+            for doc in docs:
+                data = doc.to_dict()
+                try:
+                    created_at = datetime.fromisoformat(
+                        data.get("createdAt", "").replace("Z", "+00:00")
+                    )
+                except (ValueError, AttributeError):
+                    created_at = datetime.utcnow()
+                result.append(CampusAlert(
+                    id=doc.id,
+                    alert_type=type_map.get(data.get("type", "information"), "info"),
+                    title=data.get("title", "Campus Alert"),
+                    message=data.get("message", ""),
+                    created_at=created_at,
+                    is_read=False,
+                ))
+            return result
+        except Exception as e:
+            logger.error(f"Firestore broadcast read failed, falling back to MongoDB: {e}")
+
+    # Fallback: original MongoDB campus_alerts
     alerts = await db.campus_alerts.find().sort("created_at", -1).to_list(50)
     return [CampusAlert(**alert) for alert in alerts]
 
